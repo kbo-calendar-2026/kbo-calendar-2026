@@ -1,0 +1,69 @@
+name: Update Schedule & Deploy
+
+on:
+  schedule:
+    - cron: '0 19 * * *' # Every day at 04:00 KST (19:00 UTC previous day)
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Crawler & Generator
+        run: |
+          python crawler.py
+          python txt_to_ics.py
+          python create_all_schedule.py
+
+      - name: Commit & Push Data Changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add kbo_schedules_2026_txt kbo_schedules_2026_ics
+          # If there are changes, commit and push.
+          # We use [skip ci] to prevent a loop if we are only updating data, 
+          # BUT we actually want the deployment to run. 
+          # Since the subsequent run will find no changes, it won't loop forever.
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update schedule data" && git push)
+
+      - name: Copy ICS to App Public Folder
+        run: |
+          mkdir -p app/public/ics
+          cp kbo_schedules_2026_ics/*.ics app/public/ics/
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build React App
+        run: |
+          cd app
+          npm ci
+          npm run build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./app/dist
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
