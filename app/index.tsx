@@ -1,4 +1,4 @@
-import { Calendar, Download, ChevronRight, Info, ExternalLink, ChevronLeft, CalendarPlus } from 'lucide-react';
+import { Calendar, Download, ChevronRight, Info, ExternalLink, ChevronLeft, CalendarPlus, X, Heart } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -8,6 +8,90 @@ import { createRoot } from 'react-dom/client';
 // 예: 'https://username.github.io/repo-name'
 const URL_PATH = '/kbo-calendar-2026'; // Repository Name
 const DEPLOY_BASE_URL = `https://kbo-calendar-2026.github.io${URL_PATH}`;
+
+// --- Ad Components ---
+
+const AdBanner = () => {
+  return (
+    <div className="w-full bg-gray-50 rounded-xl p-4 flex flex-col items-center justify-center text-gray-400 text-sm border border-gray-100 min-h-[100px] my-4 shadow-sm">
+      <span className="font-semibold mb-1 text-gray-500">광고 배너 영역</span>
+      <span className="text-xs text-gray-400 text-center">
+        구글 애드센스 또는 쿠팡 파트너스 배너가<br />이곳에 표시됩니다.
+      </span>
+      {/* 실제 사용 시 아래 주석 해제 후 스크립트 삽입 */}
+      {/* <ins className="adsbygoogle" ... /> */}
+    </div>
+  );
+};
+
+interface AdModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+const AdModal = ({ isOpen, onClose, onConfirm }: AdModalProps) => {
+  const [timeLeft, setTimeLeft] = useState(3); // 3초 카운트다운
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeLeft(3);
+      const timer = setInterval(() => {
+        setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 animate-fade-in">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal Content */}
+      <div className="relative bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl p-6 flex flex-col items-center gap-4 animate-slide-up">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+          <X size={24} />
+        </button>
+
+        <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-1 text-red-500">
+          <Heart size={24} fill="currentColor" />
+        </div>
+
+        <h3 className="text-xl font-bold text-gray-900">잠시만 기다려주세요!</h3>
+        <p className="text-sm text-gray-500 text-center leading-relaxed">
+          무료 서비스 운영을 위해<br />스폰서 광고를 운영하고 있습니다. 🙌
+        </p>
+
+        {/* 전면 광고 영역 (Coupang Partners 등) */}
+        <div className="w-full h-48 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center text-gray-400 text-sm">
+          광고 / 스폰서 배너 영역
+        </div>
+
+        <div className="w-full pt-2 space-y-3">
+          <button
+            onClick={onConfirm}
+            disabled={timeLeft > 0}
+            className={`w-full py-3.5 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-2
+                        ${timeLeft > 0
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg active:scale-95'
+              }`}
+          >
+            {timeLeft > 0 ? `${timeLeft}초 뒤 구독 가능` : '캘린더 구독하러 가기'}
+          </button>
+          {timeLeft === 0 && (
+            <p className="text-[10px] text-gray-400 text-center">
+              버튼을 누르면 캘린더 앱이 실행됩니다.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 type TeamId = 'all' | 'lg' | 'hanwha' | 'ssg' | 'samsung' | 'nc' | 'kt' | 'lotte' | 'kia' | 'doosan' | 'kiwoom';
 
@@ -103,6 +187,7 @@ const TEAMS: Team[] = [
 
 const App = () => {
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId>('all');
+  const [isAdModalOpen, setIsAdModalOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +201,14 @@ const App = () => {
     }
   };
 
+  // Preload team logos
+  useEffect(() => {
+    TEAMS.forEach((team) => {
+      const img = new Image();
+      img.src = team.logoUrl;
+    });
+  }, []);
+
   const selectedTeam = TEAMS.find(t => t.id === selectedTeamId) || TEAMS[0];
 
   // Dynamic Background Style
@@ -127,6 +220,12 @@ const App = () => {
   };
 
   const handleSubscribe = () => {
+    setIsAdModalOpen(true);
+  };
+
+  const confirmSubscribe = () => {
+    setIsAdModalOpen(false);
+
     let fileName = '';
 
     if (selectedTeamId === 'all') {
@@ -271,6 +370,9 @@ const App = () => {
             </p>
           </div>
 
+          {/* 광고 배너 영역 */}
+          <AdBanner />
+
           {/* Divider */}
           <div className="w-full h-px bg-gray-100 my-2"></div>
 
@@ -288,8 +390,7 @@ const App = () => {
                   <Calendar size={20} />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-800 text-sm">캘린더 별 연동 방법</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">아이폰, 갤럭시, 구글 캘린더 설정법</p>
+                  <h4 className="font-semibold text-gray-800 text-sm">캘린더 별 연동 방법 바로 보기</h4>
                 </div>
               </div>
               <ChevronRight size={18} className="text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-transform" />
@@ -305,6 +406,13 @@ const App = () => {
           </p>
         </footer>
       </div>
+
+      {/* Ad Modal */}
+      <AdModal
+        isOpen={isAdModalOpen}
+        onClose={() => setIsAdModalOpen(false)}
+        onConfirm={confirmSubscribe}
+      />
 
       {/* Styles for Hide Scrollbar & Animations */}
       <style>{`
